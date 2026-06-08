@@ -439,6 +439,17 @@ final class Page
     }
 
     /**
+     * Make screenshot of a specific element.
+     */
+    public function screenshotElement(string $selector, ?string $filename = null): string
+    {
+        $locator = $this->locator($selector);
+        $binary = $locator->screenshot();
+
+        return Screenshot::save($binary, $filename);
+    }
+
+    /**
      * Get the console logs from the page, if any.
      *
      * @return array<int, array{message: string}>
@@ -628,6 +639,8 @@ final class Page
             'screenshot',
             'waitForLoadState',
             'waitForURL',
+            'keyboardDown',
+            'keyboardUp',
             'setViewportSize',
             'viewportSize',
         ];

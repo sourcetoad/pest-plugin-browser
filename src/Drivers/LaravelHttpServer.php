@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pest\Browser\Drivers;
 
 use Amp\ByteStream\ReadableResourceStream;
+use Amp\Http\Cookie\RequestCookie;
 use Amp\Http\Server\DefaultErrorHandler;
 use Amp\Http\Server\HttpServer as AmpHttpServer;
 use Amp\Http\Server\HttpServerStatus;
@@ -18,11 +19,11 @@ use Illuminate\Foundation\Testing\Concerns\WithoutExceptionHandlingHandler;
 use Illuminate\Http\Request;
 use Illuminate\Routing\UrlGenerator;
 use Illuminate\Support\Uri;
-use Pest\Browser\Configuration;
 use Pest\Browser\Contracts\HttpServer;
 use Pest\Browser\Exceptions\ServerNotFoundException;
 use Pest\Browser\Execution;
 use Pest\Browser\GlobalState;
+use Pest\Browser\Playwright\Playwright;
 use Pest\Browser\Support\PersistHttpServer;
 use Psr\Log\NullLogger;
 use Symfony\Component\Mime\MimeTypes;
@@ -257,21 +258,31 @@ final class LaravelHttpServer implements HttpServer
         if ($method !== 'GET' && str_starts_with(mb_strtolower($contentType), 'application/x-www-form-urlencoded')) {
             parse_str($rawBody, $parameters);
         }
+        $cookies = array_map(fn (RequestCookie $cookie): string => urldecode($cookie->getValue()), $request->getCookies());
+        $cookies = array_merge($cookies, test()->prepareCookiesForRequest()); // @phpstan-ignore-line
+        /** @var array<string, string> $serverVariables */
+        $serverVariables = test()->serverVariables(); // @phpstan-ignore-line
 
         $symfonyRequest = Request::create(
             $absoluteUrl,
             $method,
             $parameters,
-            $request->getCookies(),
+            $cookies,
             [], // @TODO files...
-            [], // @TODO server variables...
+            $serverVariables,
             $rawBody
         );
 
         $symfonyRequest->headers->add($request->getHeaders());
 
-        if (isset(Configuration::$hostname)) {
-            $symfonyRequest->headers->set('Host', sprintf('%s:%d', Configuration::$hostname, $this->port));
+        // Set the Host header to match the configured host for subdomain routing
+        $configuredHost = Playwright::host();
+        if ($configuredHost !== null) {
+            $hostHeader = sprintf('%s:%d', $configuredHost, $this->port);
+            $symfonyRequest->headers->set('Host', $hostHeader);
+            // Also set SERVER_NAME for Laravel routing
+            $symfonyRequest->server->set('SERVER_NAME', $configuredHost);
+            $symfonyRequest->server->set('HTTP_HOST', $hostHeader);
         }
 
         $debug = config('app.debug');

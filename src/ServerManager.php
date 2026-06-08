@@ -8,6 +8,7 @@ use Pest\Browser\Contracts\HttpServer;
 use Pest\Browser\Contracts\PlaywrightServer;
 use Pest\Browser\Drivers\LaravelHttpServer;
 use Pest\Browser\Drivers\NullableHttpServer;
+use Pest\Browser\Playwright\Playwright;
 use Pest\Browser\Playwright\Servers\AlreadyStartedPlaywrightServer;
 use Pest\Browser\Playwright\Servers\ExistingPlaywrightServer;
 use Pest\Browser\Playwright\Servers\PlaywrightNpmServer;
@@ -67,7 +68,9 @@ final class ServerManager
             return ExistingPlaywrightServer::fromExisting()->persistSelf();
         }
 
-        $host = PersistPlaywrightServer::host();
+        // A host configured via withHost() takes precedence; otherwise fall
+        // back to the --playwright-host= argument (or the persisted default).
+        $host = Playwright::host() ?? PersistPlaywrightServer::host();
         $port = Port::find(PersistPlaywrightServer::port());
 
         $this->playwright ??= PlaywrightNpmServer::create(

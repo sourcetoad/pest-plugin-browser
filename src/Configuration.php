@@ -13,10 +13,8 @@ use Pest\Browser\Playwright\Playwright;
  *
  * @codeCoverageIgnore
  */
-final class Configuration
+final readonly class Configuration
 {
-    public static ?string $hostname = null;
-
     /**
      * Defaults the browser to Chrome.
      */
@@ -87,19 +85,22 @@ final class Configuration
         return $this;
     }
 
-    public function withHostname(string $hostname): self
-    {
-        self::$hostname = $hostname;
-
-        return $this;
-    }
-
     /**
      * Sets the browsers userAgent.
      */
     public function userAgent(string $userAgent): self
     {
         Playwright::setUserAgent($userAgent);
+
+        return $this;
+    }
+
+    /**
+     * Sets the host for the server.
+     */
+    public function withHost(?string $host): self
+    {
+        Playwright::setHost($host);
 
         return $this;
     }

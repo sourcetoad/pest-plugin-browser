@@ -13,6 +13,7 @@ use Amp\Http\Server\Request as AmpRequest;
 use Amp\Http\Server\RequestHandler\ClosureRequestHandler;
 use Amp\Http\Server\Response;
 use Amp\Http\Server\SocketHttpServer;
+use Amp\Socket\BindContext;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Foundation\Testing\Concerns\WithoutExceptionHandlingHandler;
@@ -101,7 +102,10 @@ final class LaravelHttpServer implements HttpServer
 
         $this->socket = $server = SocketHttpServer::createForDirectAccess(new NullLogger());
 
-        $server->expose("{$this->host}:{$this->port}");
+        // Disable Nagle's algorithm to avoid the ~40ms delay on Linux when keep-alive
+        // connections are reused, which surfaces as dynamic-import fetch failures.
+        // See: https://github.com/amphp/http-server/issues/381
+        $server->expose("{$this->host}:{$this->port}", (new BindContext())->withTcpNoDelay());
         $server->start(
             new ClosureRequestHandler($this->handleRequest(...)),
             new DefaultErrorHandler(),

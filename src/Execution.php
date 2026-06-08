@@ -144,9 +144,11 @@ final class Execution
         $start = microtime(true);
         $end = $start + ($timeout / 1_000);
 
+        $attemptTimeout = Playwright::attemptTimeout();
+
         while (microtime(true) < $end) {
             try {
-                return Playwright::usingTimeout(1_000, $callback);
+                return Playwright::usingTimeout($attemptTimeout, $callback);
             } catch (ExpectationFailedException) {
                 //
             }

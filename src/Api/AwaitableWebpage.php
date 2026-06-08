@@ -45,7 +45,7 @@ final readonly class AwaitableWebpage
         try {
             if (
                 in_array($name, $this->nonAwaitableMethods, true)
-                || Playwright::timeout() <= 1000
+                || Playwright::timeout() <= Playwright::attemptTimeout()
             ) {
                 // @phpstan-ignore-next-line
                 $result = $webpage->{$name}(...$arguments);

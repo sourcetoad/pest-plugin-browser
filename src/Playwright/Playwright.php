@@ -50,6 +50,14 @@ final class Playwright
     private static int $timeout = 5_000;
 
     /**
+     * The per-attempt timeout in milliseconds used inside the awaitable
+     * retry loop. Kept lower than the overall timeout so that a failed
+     * attempt can retry, but must be large enough to complete a real
+     * action (important when tracing adds per-call overhead).
+     */
+    private static int $attemptTimeout = 1_000;
+
+    /**
      * The default userAgent.
      */
     private static ?string $userAgent = null;
@@ -129,6 +137,22 @@ final class Playwright
     public static function timeout(): int
     {
         return self::$timeout;
+    }
+
+    /**
+     * Set the per-attempt timeout used inside the awaitable retry loop.
+     */
+    public static function setAttemptTimeout(int $timeout): void
+    {
+        self::$attemptTimeout = $timeout;
+    }
+
+    /**
+     * Get the per-attempt timeout used inside the awaitable retry loop.
+     */
+    public static function attemptTimeout(): int
+    {
+        return self::$attemptTimeout;
     }
 
     /**

@@ -10,10 +10,12 @@ use Pest\Browser\Drivers\LaravelHttpServer;
 use Pest\Browser\Drivers\NullableHttpServer;
 use Pest\Browser\Playwright\Playwright;
 use Pest\Browser\Playwright\Servers\AlreadyStartedPlaywrightServer;
+use Pest\Browser\Playwright\Servers\ExistingPlaywrightServer;
 use Pest\Browser\Playwright\Servers\PlaywrightNpmServer;
 use Pest\Browser\Support\PackageJsonDirectory;
+use Pest\Browser\Support\PersistHttpServer;
+use Pest\Browser\Support\PersistPlaywrightServer;
 use Pest\Browser\Support\Port;
-use Pest\Plugins\Parallel;
 
 /**
  * @internal
@@ -22,11 +24,6 @@ use Pest\Plugins\Parallel;
  */
 final class ServerManager
 {
-    /**
-     * The default host for the server.
-     */
-    public const string DEFAULT_HOST = '127.0.0.1';
-
     /**
      * The singleton instance of the server manager.
      */
@@ -47,7 +44,15 @@ final class ServerManager
      */
     public static function instance(): self
     {
-        return self::$instance ??= new self();
+        return self::$instance ??= self::newInstance();
+    }
+
+    /**
+     * Creates a new instance of the server manager.
+     */
+    public static function newInstance(): self
+    {
+        return new self;
     }
 
     /**
@@ -55,12 +60,18 @@ final class ServerManager
      */
     public function playwright(): PlaywrightServer
     {
-        if (Parallel::isWorker()) {
+        if (PersistPlaywrightServer::wantsAlreadyStartedPlaywrightServer()) {
             return AlreadyStartedPlaywrightServer::fromPersisted();
         }
 
-        $port = Port::find();
-        $host = Playwright::host() ?? self::DEFAULT_HOST;
+        if (PersistPlaywrightServer::wantsExistingPlaywrightServer()) {
+            return ExistingPlaywrightServer::fromExisting()->persistSelf();
+        }
+
+        // A host configured via withHost() takes precedence; otherwise fall
+        // back to the --playwright-host= argument (or the persisted default).
+        $host = Playwright::host() ?? PersistPlaywrightServer::host();
+        $port = Port::find(PersistPlaywrightServer::port());
 
         $this->playwright ??= PlaywrightNpmServer::create(
             PackageJsonDirectory::find(),
@@ -83,12 +94,22 @@ final class ServerManager
      */
     public function http(): HttpServer
     {
-        return $this->http ??= match (function_exists('app_path')) {
-            true => new LaravelHttpServer(
-                self::DEFAULT_HOST, // Always bind to 127.0.0.1 for server
-                Port::find(),
-            ),
-            default => new NullableHttpServer(),
-        };
+        $runningLaravel = function_exists('app_path');
+        if (! $runningLaravel) {
+            return $this->http ??= new NullableHttpServer();
+        }
+        $port = Port::find(PersistHttpServer::port());
+        if (PersistHttpServer::wantsPersisted()) {
+            $this->http ??= LaravelHttpServer::fromPersisted($port);
+
+            return $this->http;
+        }
+        $this->http ??= new LaravelHttpServer(
+            PersistHttpServer::host(),
+            $port,
+            PersistHttpServer::bindAddress()
+        );
+
+        return $this->http;
     }
 }

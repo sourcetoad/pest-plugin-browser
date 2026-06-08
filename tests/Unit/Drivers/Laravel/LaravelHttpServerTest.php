@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Pest\Browser\ServerManager;
 
 use function Pest\Laravel\withServerVariables;
 use function Pest\Laravel\withUnencryptedCookie;
@@ -15,9 +17,10 @@ it('rewrites the URLs on JS files', function (): void {
         JS,
     );
 
+    $server = ServerManager::instance()->http();
     $page = visit('/app.js');
 
-    $page->assertSee('http://127.0.0.1')
+    $page->assertSee("http://{$server->host}:{$server->port}")
         ->assertDontSee('http://localhost');
 });
 

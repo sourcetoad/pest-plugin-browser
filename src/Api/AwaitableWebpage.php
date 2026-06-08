@@ -9,6 +9,7 @@ use Pest\Browser\Execution;
 use Pest\Browser\Playwright\Page;
 use Pest\Browser\Playwright\Playwright;
 use Pest\Browser\ServerManager;
+use Pest\Browser\Support\ComputeUrl;
 use PHPUnit\Framework\ExpectationFailedException;
 use Throwable;
 
@@ -80,5 +81,19 @@ final readonly class AwaitableWebpage
     public function page(): Page
     {
         return $this->page;
+    }
+
+    /**
+     * Opens a new tab in the same browser context, sharing cookies and session state with this page.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public function newTab(string $url, array $options = []): self
+    {
+        $resolvedUrl = ComputeUrl::from($url);
+
+        $newPage = $this->page->context()->newPage()->goto($resolvedUrl, $options);
+
+        return new self($newPage, $resolvedUrl);
     }
 }
